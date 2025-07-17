@@ -21,7 +21,7 @@ search.clear()
 search.send_keys('Car')
 
 # wait for 4 sec
-sleep(4)
+sleep(10)
 
 # click search button
 driver.find_element(By.NAME, 'btnK').click()
