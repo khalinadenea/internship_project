@@ -1,21 +1,43 @@
+import os
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.firefox.service import Service as FirefoxService
-from selenium.webdriver.chrome.options import Options as ChromeOptions
-from selenium.webdriver.firefox.options import Options as FirefoxOptions
-from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.firefox import GeckoDriverManager
 from selenium.webdriver.support.wait import WebDriverWait
+from webdriver_manager.chrome import ChromeDriverManager
 from app.application import Application
 
 
-def browser_init(context, browser='chrome'):
+def browser_init(context):
     """
-    :param context: Behave context
-    :param browser: Browser name ('chrome' or 'firefox')
+    Initialize WebDriver for BrowserStack or local Chrome.
     """
-    if browser == 'chrome':
-        chrome_options = ChromeOptions()
+
+    # Your BrowserStack credentials (hardcoded for now — remember to regenerate after!)
+    bs_username = "khalinaboyce_n8dEj5"
+    bs_access_key = "53JK7y5vHQiYM6WEJkxV"
+
+    if bs_username and bs_access_key:
+        print("✅ Running on BrowserStack...")
+
+        options = webdriver.ChromeOptions()
+
+        # BrowserStack capabilities
+        options.set_capability('bstack:options', {
+            "os": "Windows",                 # Change to "OS X" to test on Mac
+            "osVersion": "11",
+            "sessionName": "Cross-platform test",
+            "buildName": "QA Automation Build",
+            "userName": bs_username,
+            "accessKey": bs_access_key
+        })
+        options.set_capability("browserName", "Chrome")
+        options.set_capability("browserVersion", "latest")
+
+        url = "https://hub-cloud.browserstack.com/wd/hub"
+        context.driver = webdriver.Remote(command_executor=url, options=options)
+
+    else:
+        print("⚠️ Running locally in headless Chrome...")
+        chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("--window-size=1920,1080")
         chrome_options.add_argument("--disable-gpu")
@@ -24,18 +46,6 @@ def browser_init(context, browser='chrome'):
         service = ChromeService(ChromeDriverManager().install())
         context.driver = webdriver.Chrome(service=service, options=chrome_options)
 
-    elif browser == 'firefox':
-        firefox_options = FirefoxOptions()
-        firefox_options.add_argument("--headless")
-        firefox_options.add_argument("--width=1920")
-        firefox_options.add_argument("--height=1080")
-
-        service = FirefoxService(GeckoDriverManager().install())
-        context.driver = webdriver.Firefox(service=service, options=firefox_options)
-
-    else:
-        raise ValueError(f"Unsupported browser: {browser}")
-
     context.driver.implicitly_wait(4)
     context.driver.maximize_window()
     context.driver.wait = WebDriverWait(context.driver, 15)
@@ -43,21 +53,20 @@ def browser_init(context, browser='chrome'):
 
 
 def before_scenario(context, scenario):
-    print('\nStarted scenario:', scenario.name)
-    if 'browser_firefox' in scenario.effective_tags:
-        browser_init(context, browser='firefox')
-    else:
-        browser_init(context, browser='chrome')
+    print(f"\n🚀 Starting scenario: {scenario.name}")
+    browser_init(context)
 
 
 def before_step(context, step):
-    print('\nStarted step:', step)
+    print(f"\n➡️  Starting step: {step.name}")
 
 
 def after_step(context, step):
     if step.status == 'failed':
-        print('\nStep failed:', step)
+        print(f"\n❌ Step failed: {step.name}")
 
 
-def after_scenario(context, feature):
-    context.driver.quit()
+def after_scenario(context, scenario):
+    print(f"\n✅ Finished scenario: {scenario.name}")
+    if hasattr(context, 'driver'):
+        context.driver.quit()
